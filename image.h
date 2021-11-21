@@ -189,7 +189,7 @@ int enregistrer(char *nom, struct fichierimage *fichier)
 	position += 4;
 
 	// ecriture de l'entete de l'image
-
+	/*
 	printf("taille image             :%d\n", fichier->entetebmp.taille_image);
 	printf("largeur                  :%d\n", fichier->entetebmp.largeur);
 	printf("hauteur                  :%d\n", fichier->entetebmp.hauteur);
@@ -201,7 +201,7 @@ int enregistrer(char *nom, struct fichierimage *fichier)
 	printf("resulution v             :%d\n", fichier->entetebmp.resolutionv);
 	printf("nbr couleurs             :%d\n", fichier->entetebmp.nbrcouleur);
 	printf("nbr couleurs importantes :%d\n", fichier->entetebmp.nbrcouleuri);
-
+	*/
 	memcpy((buffer + position), &fichier->entetebmp.taille_image, 4);
 	position += 4;
 	memcpy((buffer + position), &fichier->entetebmp.largeur, 4);
@@ -610,7 +610,204 @@ void agrandissement(fichierimage *model, int facteur, fichierimage *agrandi)
 	for (int i = 0; i < agrandi->entetebmp.hauteur; i++)
 		for (int j = 0; j < agrandi->entetebmp.largeur; j++)
 		{
-			printf("%d %d\n", i, j);
 			agrandi->image[i][j] = model->image[i / facteur][j / facteur];
 		}
+}
+
+void histogramme(fichierimage *model, int *histo_r, int *histo_g, int *histo_b)
+{
+	for (int i = 0; i < model->entetebmp.hauteur; i++)
+		for (int j = 0; j < model->entetebmp.largeur; j++)
+		{
+
+			histo_r[model->image[i][j].r]++;
+			histo_g[model->image[i][j].g]++;
+			histo_b[model->image[i][j].b]++;
+		}
+}
+
+void histogrammeCumule(int *histo_r, int *histo_g, int *histo_b, int *histo_cumule_r, int *histo_cumule_g, int *histo_cumule_b)
+{
+	histo_cumule_r[0] = histo_r[0];
+	histo_cumule_g[0] = histo_g[0];
+	histo_cumule_b[0] = histo_b[0];
+
+	for (int i = 1; i < 256; i++)
+	{
+		histo_cumule_r[i] = histo_cumule_r[i - 1] + histo_r[i];
+		histo_cumule_g[i] = histo_cumule_g[i - 1] + histo_g[i];
+		histo_cumule_b[i] = histo_cumule_b[i - 1] + histo_b[i];
+	}
+}
+
+void egalisationhisto(fichierimage *model, fichierimage *egalise)
+{
+	int histo_r[256];
+	int histo_g[256];
+	int histo_b[256];
+	int histo_cumule_r[256];
+	int histo_cumule_g[256];
+	int histo_cumule_b[256];
+
+	for (int i = 0; i < 256; i++)
+	{
+		histo_r[i] = 0;
+		histo_g[i] = 0;
+		histo_b[i] = 0;
+		histo_cumule_r[i] = 0;
+		histo_cumule_g[i] = 0;
+		histo_cumule_b[i] = 0;
+	}
+
+	histogramme(model, histo_r, histo_g, histo_b);
+	histogrammeCumule(histo_r, histo_g, histo_b, histo_cumule_r, histo_cumule_g, histo_cumule_b);
+
+	int nbr_pixels = model->entetebmp.hauteur * model->entetebmp.largeur;
+
+	for (int i = 0; i < model->entetebmp.hauteur; i++)
+		for (int j = 0; j < model->entetebmp.largeur; j++)
+			egalise->image[i][j] = nouveauPixel(histo_cumule_r[model->image[i][j].r] * 255 / nbr_pixels, histo_cumule_g[model->image[i][j].g] * 255 / nbr_pixels, histo_cumule_b[model->image[i][j].b] * 255 / nbr_pixels);
+}
+
+void reduire(fichierimage *model, int facteur, fichierimage *reduit)
+{
+	for (int i = 0; i < model->entetebmp.hauteur; i++)
+		for (int j = 0; j < model->entetebmp.largeur; j++)
+			if (i % facteur == 0 && j % facteur == 0)
+				reduit->image[i / 2][j / 2] = model->image[i][j];
+}
+
+void menu()
+{
+	system("cls");
+
+	printf("Veuillez choisir l'action %c effectuer:\n", 133);
+	printf("\tNuances de gris (n)\n");
+	printf("\tImage miroir (m)\n");
+	printf("\tImage sym%ctrique (s)\n", 130);
+	printf("\tRotation gauche (g)\n");
+	printf("\tRotation droite (d)\n");
+	printf("\tPourcentage d'une couleur (p)\n");
+	printf("\tInversion des canneaux (i)\n");
+	printf("\tImage en n%cgatif (-)\n", 130);
+	printf("\tImage monochrome (=)\n");
+	printf("\tSeuillage de l'image (l)\n");
+	printf("\tAgrandissement de l'image (a)\n");
+
+	printf("\tQuitter (q)\n");
+
+	char choix;
+	printf("\n\nVotre choix: ");
+	scanf("%c", &choix);
+	getchar();
+
+	// printf("\nVeuillez entrer le chemin du fichier %c modifier: ", 133);
+
+	char nom[100];
+
+	// gets(nom);
+	// fichierimage *model = charger(nom);
+
+	fichierimage *model = charger("NIDDAM_base.bmp");
+
+	if (choix == 'n')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nuancesDeGris(model, nouvelle);
+		enregistrer("./resultats/NIDDAM_gris.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_gris.bmp");
+	}
+
+	else if (choix == 'm')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		imageMiroir(model, nouvelle);
+		enregistrer("./resultats/NIDDAM_miroir.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_miroir.bmp");
+	}
+
+	else if (choix == 's')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		imageSymetrique(model, nouvelle);
+		enregistrer("./resultats/NIDDAM_symetrique.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_symetrique.bmp");
+	}
+
+	else if (choix == 'g')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.hauteur, model->entetebmp.largeur);
+		imageRotationGauche(model, nouvelle);
+		enregistrer("./resultats/NIDDAM_rotationGauche.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_rotationGauche.bmp");
+	}
+
+	else if (choix == 'd')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.hauteur, model->entetebmp.largeur);
+		imageRotationDroite(model, nouvelle);
+		enregistrer("./resultats/NIDDAM_rotationDroite.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_rotationDroite.bmp");
+	}
+
+	else if (choix == 'p')
+		printf("Il y a %lf pourcent de rouge dans cette image.\n", pourcentageCouleur('r', model));
+
+	else if (choix == 'i')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		inversiondescanneaux(model, nouvelle);
+		enregistrer("./resultats/NIDDAM_inversionCanaux.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_inversionCanaux.bmp");
+	}
+
+	else if (choix == 'v')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		imageNegative(model, nouvelle);
+		enregistrer("./resultats/NIDDAM_negatif.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_negatif.bmp");
+	}
+
+	else if (choix == '=')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		monochrome(model, 'g', nouvelle);
+		enregistrer("./resultats/NIDDAM_monochrome.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_monochrome.bmp");
+	}
+
+	else if (choix == 'l')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		seuillage(model, 128, nouvelle);
+		enregistrer("./resultats/NIDDAM_seuillage.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_seuillage.bmp");
+	}
+
+	else if (choix == '+')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur * 2, model->entetebmp.hauteur * 2);
+		agrandissement(model, 2, nouvelle);
+		enregistrer("./resultats/NIDDAM_agrandissement.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_agrandissement.bmp");
+	}
+
+	else if (choix == '-')
+	{
+		fichierimage *reduite = nouveau(model->entetebmp.largeur / 2, model->entetebmp.hauteur / 2);
+		reduire(model, 2, reduite);
+		enregistrer("./resultats/NIDDAM_reduite.bmp", reduite);
+		system("start ./resultats/NIDDAM_reduite.bmp");
+	}
+
+	else if (choix == 'e')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		egalisationhisto(model, nouvelle);
+		enregistrer("./resultats/NIDDAM_egalisation.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_egalisation.bmp");
+	}
+
+	system("start ./NIDDAM_base.bmp");
 }

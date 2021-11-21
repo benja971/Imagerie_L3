@@ -21,9 +21,7 @@
 
 int main()
 {
-	//calcul du temps d'execution
-	clock_t start = clock();
-
+	/*
 	// exemple de déclaration d'un pointeur image
 	fichierimage *fichier = charger("NIDDAM_base.bmp");
 
@@ -78,14 +76,33 @@ int main()
 	fichierimage *binaire = nouveau(fichier->entetebmp.largeur, fichier->entetebmp.hauteur);
 	seuillage(fichier, 128.0, binaire);
 	enregistrer("resultats/NIDDAM_binaire.bmp", binaire);
+	printf("Veuillez entrer le facteur d'agrandissement: ");
+	int facteur;
+	scanf("%f", &facteur);
+	fichierimage *agrandi = nouveau(fichier->entetebmp.largeur * facteur, fichier->entetebmp.hauteur * facteur);
+	printf("test");
+	agrandissement(fichier, facteur, agrandi);
+	enregistrer("resultats/NIDDAM_agrandi.bmp", agrandi);
+	*/
 
-	// printf("Veuillez entrer le facteur d'agrandissement: ");
-	// int facteur;
-	// scanf("%f", &facteur);
-	// fichierimage *agrandi = nouveau(fichier->entetebmp.largeur * facteur, fichier->entetebmp.hauteur * facteur);
-	// printf("test");
-	// agrandissement(fichier, facteur, agrandi);
-	// enregistrer("resultats/NIDDAM_agrandi.bmp", agrandi);
+	int continuer = 1;
+	while (continuer == 1)
+	{
+		char choix;
+		menu();
+		printf("Voulez vous continuer ?\nVotre choix (o/n): ");
+		scanf("%c", &choix);
+		getchar();
 
-	printf("\nTemps d'execution : %f secondes\n", (double)(clock() - start) / CLOCKS_PER_SEC);
+		while (choix != 'o' && choix != 'n')
+		{
+			printf("Veuillez entrer un choix valide (o/n): ");
+			scanf("%c", &choix);
+			getchar();
+		}
+		if (choix == 'o')
+			continuer = 1;
+		else if (choix == 'n')
+			continuer = 0;
+	}
 }
