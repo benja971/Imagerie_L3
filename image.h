@@ -677,9 +677,42 @@ void reduire(fichierimage *model, int facteur, fichierimage *reduit)
 				reduit->image[i / 2][j / 2] = model->image[i][j];
 }
 
+void convolution(fichierimage *model, int masque[3][3], int taille, fichierimage *conv)
+{
+	int moy_r = 0;
+	int moy_g = 0;
+	int moy_b = 0;
+
+	for (int i = 0; i < model->entetebmp.hauteur; i++)
+		for (int j = 0; j < model->entetebmp.largeur; j++)
+		{
+			moy_r = 0;
+			moy_g = 0;
+			moy_b = 0;
+
+			int a, b = 0;
+			for (int k = i - 1; k <= i + 1; k++)
+			{
+				a = 0;
+				for (int l = j - 1; l <= j + 1; l++)
+				{
+					if (k >= 0 && l >= 0 && k < model->entetebmp.hauteur && l < model->entetebmp.largeur)
+					{
+						moy_r += masque[a][b] * model->image[k][l].r;
+						moy_g += masque[a][b] * model->image[k][l].g;
+						moy_b += masque[a][b] * model->image[k][l].b;
+					}
+					a++;
+				}
+				b++;
+			}
+			conv->image[i][j] = nouveauPixel(moy_r * 1 / 16, moy_g * 1 / 16, moy_b * 1 / 16);
+		}
+}
+
 void menu()
 {
-	system("cls");
+	// system("cls");
 
 	printf("Veuillez choisir l'action %c effectuer:\n", 133);
 	printf("\tNuances de gris (n)\n");
@@ -709,10 +742,11 @@ void menu()
 	// fichierimage *model = charger(nom);
 
 	fichierimage *model = charger("NIDDAM_base.bmp");
+	fichierimage *nouvelle;
 
 	if (choix == 'n')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		nuancesDeGris(model, nouvelle);
 		enregistrer("./resultats/NIDDAM_gris.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_gris.bmp");
@@ -720,7 +754,7 @@ void menu()
 
 	else if (choix == 'm')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		imageMiroir(model, nouvelle);
 		enregistrer("./resultats/NIDDAM_miroir.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_miroir.bmp");
@@ -728,7 +762,7 @@ void menu()
 
 	else if (choix == 's')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		imageSymetrique(model, nouvelle);
 		enregistrer("./resultats/NIDDAM_symetrique.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_symetrique.bmp");
@@ -736,7 +770,7 @@ void menu()
 
 	else if (choix == 'g')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.hauteur, model->entetebmp.largeur);
+		nouvelle = nouveau(model->entetebmp.hauteur, model->entetebmp.largeur);
 		imageRotationGauche(model, nouvelle);
 		enregistrer("./resultats/NIDDAM_rotationGauche.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_rotationGauche.bmp");
@@ -744,7 +778,7 @@ void menu()
 
 	else if (choix == 'd')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.hauteur, model->entetebmp.largeur);
+		nouvelle = nouveau(model->entetebmp.hauteur, model->entetebmp.largeur);
 		imageRotationDroite(model, nouvelle);
 		enregistrer("./resultats/NIDDAM_rotationDroite.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_rotationDroite.bmp");
@@ -755,7 +789,7 @@ void menu()
 
 	else if (choix == 'i')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		inversiondescanneaux(model, nouvelle);
 		enregistrer("./resultats/NIDDAM_inversionCanaux.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_inversionCanaux.bmp");
@@ -763,7 +797,7 @@ void menu()
 
 	else if (choix == 'v')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		imageNegative(model, nouvelle);
 		enregistrer("./resultats/NIDDAM_negatif.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_negatif.bmp");
@@ -771,7 +805,7 @@ void menu()
 
 	else if (choix == '=')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		monochrome(model, 'g', nouvelle);
 		enregistrer("./resultats/NIDDAM_monochrome.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_monochrome.bmp");
@@ -779,7 +813,7 @@ void menu()
 
 	else if (choix == 'l')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		seuillage(model, 128, nouvelle);
 		enregistrer("./resultats/NIDDAM_seuillage.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_seuillage.bmp");
@@ -787,7 +821,7 @@ void menu()
 
 	else if (choix == '+')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur * 2, model->entetebmp.hauteur * 2);
+		nouvelle = nouveau(model->entetebmp.largeur * 2, model->entetebmp.hauteur * 2);
 		agrandissement(model, 2, nouvelle);
 		enregistrer("./resultats/NIDDAM_agrandissement.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_agrandissement.bmp");
@@ -795,19 +829,36 @@ void menu()
 
 	else if (choix == '-')
 	{
-		fichierimage *reduite = nouveau(model->entetebmp.largeur / 2, model->entetebmp.hauteur / 2);
-		reduire(model, 2, reduite);
-		enregistrer("./resultats/NIDDAM_reduite.bmp", reduite);
+		nouvelle = nouveau(model->entetebmp.largeur / 2, model->entetebmp.hauteur / 2);
+		reduire(model, 2, nouvelle);
+		enregistrer("./resultats/NIDDAM_reduite.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_reduite.bmp");
 	}
 
 	else if (choix == 'e')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		egalisationhisto(model, nouvelle);
 		enregistrer("./resultats/NIDDAM_egalisation.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_egalisation.bmp");
 	}
 
+	else if (choix = 'c')
+	{
+		fichierimage *nouvelle0 = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		fichierimage *nouvelle1 = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+
+		int masque0[3][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
+		int masque1[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+
+		convolution(model, masque1, 3, nouvelle0);
+		enregistrer("./resultats/NIDDAM_convolution0.bmp", nouvelle0);
+		system("start ./resultats/NIDDAM_convolution0.bmp");
+		free(nouvelle0);
+		free(nouvelle1);
+	}
+
+	free(nouvelle);
+	free(model);
 	system("start ./NIDDAM_base.bmp");
 }
