@@ -4,7 +4,6 @@
 #include <math.h>
 
 // structure d'entete du fichier
-
 typedef struct entete_fichier
 {
 	char idformat[2];
@@ -415,7 +414,7 @@ TSL RVB2TSL(pixels rgb)
 	float max = MAX(MAX(red, green), blue);
 	float min = MIN(MIN(red, green), blue);
 
-	tsl.l = (max + min) / 2.0;
+	tsl.l = (max + min) * 50;
 
 	if (max == min)
 	{
@@ -424,28 +423,31 @@ TSL RVB2TSL(pixels rgb)
 	}
 	else
 	{
-		if (tsl.l < 0.5)
+		if (tsl.l < 50)
 		{
-			tsl.s = (max - min) / (max + min);
+			tsl.s = (max - min) / (max + min) * 100.0;
 		}
 		else
 		{
-			tsl.s = (max - min) / (2.0 - max - min);
+			tsl.s = (max - min) / (2.0 - max - min) * 100.0;
 		}
 
 		if (red == max)
 		{
-			tsl.t = (green - blue) / (max - min);
+			tsl.t = 60 * (green - blue) / (max - min);
 		}
 		else if (green == max)
 		{
-			tsl.t = 2.0 + (blue - red) / (max - min);
+			tsl.t = 60 * (blue - red) / (max - min) + 120;
 		}
 		else
 		{
-			tsl.t = 4.0 + (red - green) / (max - min);
+			tsl.t = 60 * (red - green) / (max - min) + 240;
 		}
 	}
+
+	// printf("tsl : %f %f %f\n", tsl.t, tsl.s, tsl.l);
+
 	return tsl;
 }
 
@@ -456,9 +458,9 @@ void imageRVBversTSL(fichierimage *model, fichierimage *imageT, fichierimage *im
 		for (int j = 0; j < model->entetebmp.largeur; j++)
 		{
 			TSL tsl = RVB2TSL(model->image[i][j]);
-			imageT->image[i][j] = nouveauPixel((int)(tsl.t * 255), (int)(tsl.t * 255), (int)(tsl.t * 255));
-			imageS->image[i][j] = nouveauPixel((int)(tsl.s * 255), (int)(tsl.s * 255), (int)(tsl.s * 255));
-			imageL->image[i][j] = nouveauPixel((int)(tsl.l * 255), (int)(tsl.l * 255), (int)(tsl.l * 255));
+			imageT->image[i][j] = nouveauPixel((int)(tsl.t), (int)(tsl.t), (int)(tsl.t));
+			imageS->image[i][j] = nouveauPixel((int)(tsl.s), (int)(tsl.s), (int)(tsl.s));
+			imageL->image[i][j] = nouveauPixel((int)(tsl.l), (int)(tsl.l), (int)(tsl.l));
 		}
 	}
 }
@@ -690,29 +692,99 @@ void convolution(fichierimage *model, int masque[3][3], int taille, fichierimage
 			moy_g = 0;
 			moy_b = 0;
 
-			int a, b = 0;
+			int a = 0;
+			int b = 0;
+			int c = 0;
 			for (int k = i - 1; k <= i + 1; k++)
 			{
-				a = 0;
+				b = 0;
 				for (int l = j - 1; l <= j + 1; l++)
 				{
-					if (k >= 0 && l >= 0 && k < model->entetebmp.hauteur && l < model->entetebmp.largeur)
+					c += masque[a][b];
+					if (k != i && l != j && k >= 0 && l >= 0 && k < model->entetebmp.hauteur && l < model->entetebmp.largeur)
 					{
-						moy_r += masque[a][b] * model->image[k][l].r;
-						moy_g += masque[a][b] * model->image[k][l].g;
-						moy_b += masque[a][b] * model->image[k][l].b;
+						moy_r += (masque[a][b] * model->image[k][l].r);
+						moy_g += (masque[a][b] * model->image[k][l].g);
+						moy_b += (masque[a][b] * model->image[k][l].b);
 					}
-					a++;
+					b++;
 				}
-				b++;
+				a++;
 			}
-			conv->image[i][j] = nouveauPixel(moy_r * 1 / 16, moy_g * 1 / 16, moy_b * 1 / 16);
+			conv->image[i][j] = nouveauPixel(moy_r / c, moy_g / c, moy_b / c);
 		}
+}
+
+void filtre_moyen(fichierimage *model, fichierimage *moyen)
+{
+	int masque[3][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
+	convolution(model, masque, 3, moyen);
+}
+
+void sort_list(int list[8], int indexs[8][2], int taille)
+{
+	int temp;
+	int temp2[2];
+	for (int i = 0; i < taille; i++)
+	{
+		for (int j = 0; j < taille; j++)
+		{
+			if (list[j] > list[j + 1])
+			{
+				temp = list[j];
+				temp2 = indexs[j];
+				list[j] = list[j + 1];
+				indexs[j] = indexs[j + 1];
+				list[j + 1] = temp;
+				indexs[j + 1] = temp2;
+			}
+		}
+	}
+}
+
+void filtre_median(fichierimage *model, fichierimage *median)
+{
+
+	int liste[8];
+	int indexs[8][2];
+
+	for (int i = 0; i < model->entetebmp.hauteur; i++)
+		for (int j = 0; j < model->entetebmp.largeur; j++)
+		{
+
+			int a = 0;
+			int b = 0;
+			int c = 0;
+			for (int k = i - 1; k <= i + 1; k++)
+			{
+				b = 0;
+				for (int l = j - 1; l <= j + 1; l++)
+				{
+					if (k != i && l != j && k >= 0 && l >= 0 && k < model->entetebmp.hauteur && l < model->entetebmp.largeur)
+					{
+						liste[c] = (model->image[k][l].r, model->image[k][l].g, model->image[k][l].b) / 3;
+						indexs[c][0] = i;
+						indexs[c][1] = j;
+						c++;
+					}
+					b++;
+				}
+				a++;
+				sort_list(liste, c);
+				pixels median = model->image[indexs[liste[c / 2]]];
+				median->image[i][j] = nouveauPixel(median.r, median.g, median.b);
+			}
+		}
+}
+
+entete_fichier recupInformations(fichierimage *image)
+{
+	return image->entetefichier;
 }
 
 void menu()
 {
-	// system("cls");
+	system("cls");
 
 	printf("Veuillez choisir l'action %c effectuer:\n", 133);
 	printf("\tNuances de gris (n)\n");
@@ -726,6 +798,12 @@ void menu()
 	printf("\tImage monochrome (=)\n");
 	printf("\tSeuillage de l'image (l)\n");
 	printf("\tAgrandissement de l'image (a)\n");
+	printf("\tRGB vers TSL (t)\n");
+	printf("\tTSL vers RGB (r)\n");
+	printf("\tEgalisation de l'histogramme (e)\n");
+	printf("\tReduire l'image (d)\n");
+	printf("\tFiltre moyen (0)\n");
+	printf("\tFiltre median (1)\n");
 
 	printf("\tQuitter (q)\n");
 
@@ -843,7 +921,7 @@ void menu()
 		system("start ./resultats/NIDDAM_egalisation.bmp");
 	}
 
-	else if (choix = 'c')
+	else if (choix == 'c')
 	{
 		fichierimage *nouvelle0 = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		fichierimage *nouvelle1 = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
@@ -851,11 +929,68 @@ void menu()
 		int masque0[3][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
 		int masque1[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
 
-		convolution(model, masque1, 3, nouvelle0);
+		convolution(model, masque0, 3, nouvelle0);
+		convolution(model, masque1, 3, nouvelle1);
 		enregistrer("./resultats/NIDDAM_convolution0.bmp", nouvelle0);
+		enregistrer("./resultats/NIDDAM_convolution1.bmp", nouvelle1);
 		system("start ./resultats/NIDDAM_convolution0.bmp");
+		system("start ./resultats/NIDDAM_convolution1.bmp");
 		free(nouvelle0);
 		free(nouvelle1);
+	}
+
+	else if (choix == 't')
+	{
+		fichierimage *t = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		fichierimage *s = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		fichierimage *l = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+
+		imageRVBversTSL(model, t, s, l);
+		enregistrer("./resultats/NIDDAM_T.bmp", t);
+		enregistrer("./resultats/NIDDAM_S.bmp", s);
+		enregistrer("./resultats/NIDDAM_L.bmp", l);
+
+		system("start ./resultats/NIDDAM_T.bmp");
+		system("start ./resultats/NIDDAM_S.bmp");
+		system("start ./resultats/NIDDAM_L.bmp");
+
+		free(t);
+		free(s);
+		free(l);
+	}
+
+	else if (choix == 'r')
+	{
+		fichierimage *rgb = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		fichierimage *t = charger("./resultats/NIDDAM_T.bmp");
+		fichierimage *s = charger("./resultats/NIDDAM_S.bmp");
+		fichierimage *l = charger("./resultats/NIDDAM_L.bmp");
+
+		imageTSLversRGB(t, s, l, rgb);
+		enregistrer("./resultats/NIDDAM_RGB.bmp", rgb);
+		system("start ./resultats/NIDDAM_RGB.bmp");
+		free(t);
+		free(s);
+		free(l);
+		free(rgb);
+	}
+
+	else if (choix == '0')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		filtre_moyen(model, nouvelle);
+		enregistrer("./resultats/NIDDAM_filtre_moyen.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_filtre_moyen.bmp");
+		free(nouvelle);
+	}
+
+	else if (choix == '1')
+	{
+		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		filtre_median(model, nouvelle);
+		enregistrer("./resultats/NIDDAM_filtre_median.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_filtre_median.bmp");
+		free(nouvelle);
 	}
 
 	free(nouvelle);
