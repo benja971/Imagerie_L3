@@ -341,13 +341,18 @@ pixels nouveauPixel(char r, char g, char b)
 	return pixel;
 }
 
+int moyenne(int r, int g, int b)
+{
+	return (r + g + b) / 3;
+}
+
 void nuancesDeGris(fichierimage *model, fichierimage *gray)
 {
 	for (int i = model->entetebmp.hauteur - 1; i >= 0; i--)
 	{
 		for (int j = 0; j < model->entetebmp.largeur; j++)
 		{
-			char gr = (model->image[i][j].b + model->image[i][j].g + model->image[i][j].r) / 3;
+			char gr = moyenne(model->image[i][j].b, model->image[i][j].g, model->image[i][j].r);
 			gray->image[i][j] = nouveauPixel(gr, gr, gr);
 		}
 	}
@@ -679,11 +684,12 @@ void reduire(fichierimage *model, int facteur, fichierimage *reduit)
 				reduit->image[i / 2][j / 2] = model->image[i][j];
 }
 
-void convolution(fichierimage *model, int masque[3][3], int taille, fichierimage *conv)
+void convolution(fichierimage *model, int masque[3][3], fichierimage *conv)
 {
 	int moy_r = 0;
 	int moy_g = 0;
 	int moy_b = 0;
+	int c, d, compt;
 
 	for (int i = 0; i < model->entetebmp.hauteur; i++)
 		for (int j = 0; j < model->entetebmp.largeur; j++)
@@ -692,89 +698,97 @@ void convolution(fichierimage *model, int masque[3][3], int taille, fichierimage
 			moy_g = 0;
 			moy_b = 0;
 
-			int a = 0;
-			int b = 0;
-			int c = 0;
-			for (int k = i - 1; k <= i + 1; k++)
-			{
-				b = 0;
-				for (int l = j - 1; l <= j + 1; l++)
+			compt = 0;
+			for (int a = 0; a < 3; a++)
+				for (int b = 0; b < 3; b++)
 				{
-					c += masque[a][b];
-					if (k != i && l != j && k >= 0 && l >= 0 && k < model->entetebmp.hauteur && l < model->entetebmp.largeur)
+					c = i + a - 1;
+					d = j + b - 1;
+
+					if (c >= 0 && d >= 0 && moyenne(model->image[c][d].r, model->image[c][d].g, model->image[c][d].b) != 0)
 					{
-						moy_r += (masque[a][b] * model->image[k][l].r);
-						moy_g += (masque[a][b] * model->image[k][l].g);
-						moy_b += (masque[a][b] * model->image[k][l].b);
+						compt += masque[a][b];
+						moy_r += masque[a][b] * model->image[c][d].r;
+						moy_g += masque[a][b] * model->image[c][d].g;
+						moy_b += masque[a][b] * model->image[c][d].b;
 					}
-					b++;
 				}
-				a++;
-			}
-			conv->image[i][j] = nouveauPixel(moy_r / c, moy_g / c, moy_b / c);
+
+			if (compt != 0)
+				conv->image[i][j] = nouveauPixel(moy_r / compt, moy_g / compt, moy_b / compt);
+			else
+				conv->image[i][j] = nouveauPixel(0, 0, 0);
 		}
 }
 
 void filtre_moyen(fichierimage *model, fichierimage *moyen)
 {
 	int masque[3][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
-	convolution(model, masque, 3, moyen);
+	convolution(model, masque, moyen);
 }
 
-void sort_list(int list[8], int indexs[8][2], int taille)
+int trierListePixels(pixels temp[9], pixels med[9])
 {
-	int temp;
-	int temp2[2];
-	for (int i = 0; i < taille; i++)
-	{
-		for (int j = 0; j < taille; j++)
+	int compt = 0;
+	for (int a = 0; a < 9; a++)
+		if (moyenne(med[a].r, med[a].g, med[a].b) != 0)
 		{
-			if (list[j] > list[j + 1])
-			{
-				temp = list[j];
-				temp2 = indexs[j];
-				list[j] = list[j + 1];
-				indexs[j] = indexs[j + 1];
-				list[j + 1] = temp;
-				indexs[j + 1] = temp2;
-			}
+			temp[compt] = med[a];
+			compt++;
 		}
-	}
+
+	for (int a = 0; a < compt; a++)
+		for (int b = a + 1; b < compt; b++)
+			if (moyenne(temp[a].r, temp[a].g, temp[a].b) > moyenne(temp[b].r, temp[b].g, temp[b].b))
+			{
+				pixels tmp = temp[a];
+				temp[a] = temp[b];
+				temp[b] = tmp;
+			}
+
+	return compt;
+}
+
+void listeVoisins(int c, int d, pixels med[9], fichierimage *model, int i, int j, int a, int b)
+{
+	c = i + a - 1;
+	d = j + b - 1;
+
+	if (c >= 0 && d >= 0 && c < model->entetebmp.hauteur && d < model->entetebmp.largeur)
+		med[a * 3 + b] = model->image[c][d];
+	else
+		med[a * 3 + b] = nouveauPixel(0, 0, 0);
 }
 
 void filtre_median(fichierimage *model, fichierimage *median)
 {
-
-	int liste[8];
-	int indexs[8][2];
+	pixels med[9], temp[9];
+	int c, d;
 
 	for (int i = 0; i < model->entetebmp.hauteur; i++)
 		for (int j = 0; j < model->entetebmp.largeur; j++)
 		{
-
-			int a = 0;
-			int b = 0;
-			int c = 0;
-			for (int k = i - 1; k <= i + 1; k++)
-			{
-				b = 0;
-				for (int l = j - 1; l <= j + 1; l++)
+			for (int a = 0; a < 3; a++)
+				for (int b = 0; b < 3; b++)
 				{
-					if (k != i && l != j && k >= 0 && l >= 0 && k < model->entetebmp.hauteur && l < model->entetebmp.largeur)
-					{
-						liste[c] = (model->image[k][l].r, model->image[k][l].g, model->image[k][l].b) / 3;
-						indexs[c][0] = i;
-						indexs[c][1] = j;
-						c++;
-					}
-					b++;
+					listeVoisins(c, d, med, model, i, j, a, b);
 				}
-				a++;
-				sort_list(liste, c);
-				pixels median = model->image[indexs[liste[c / 2]]];
-				median->image[i][j] = nouveauPixel(median.r, median.g, median.b);
-			}
+
+			int compt = trierListePixels(temp, med);
+
+			median->image[i][j] = temp[compt / 2];
 		}
+}
+
+void luminosite(fichierimage *model, fichierimage *luminosite, int intensite)
+{
+	for (int i = 0; i < model->entetebmp.hauteur; i++)
+		for (int j = 0; j < model->entetebmp.largeur; j++)
+			luminosite->image[i][j] = nouveauPixel((int)(model->image[i][j].r * intensite / 100), (int)(model->image[i][j].g * intensite / 100), (int)(model->image[i][j].b * intensite / 100));
+}
+
+void contraste(fichierimage *model, fichierimage *contraste, int intensite)
+{
 }
 
 entete_fichier recupInformations(fichierimage *image)
@@ -782,9 +796,61 @@ entete_fichier recupInformations(fichierimage *image)
 	return image->entetefichier;
 }
 
+void selection(fichierimage *model, fichierimage *selection, int x1, int y1, int x2, int y2)
+{
+	int a = 0;
+	int b = 0;
+	int temp;
+
+	if (x1 > x2)
+	{
+		temp = x1;
+		x1 = x2;
+		x2 = temp;
+
+		temp = y1;
+		y1 = y2;
+		y2 = temp;
+	}
+	else if (y1 > y2)
+	{
+		temp = y1;
+		y1 = y2;
+		y2 = temp;
+
+		temp = x1;
+		x1 = x2;
+		x2 = temp;
+	}
+	else if (x1 < 0)
+		x1 = 0;
+	else if (y1 < 0)
+		y1 = 0;
+	else if (x2 > model->entetebmp.largeur)
+		x2 = model->entetebmp.largeur;
+	else if (y2 > model->entetebmp.hauteur)
+		y2 = model->entetebmp.hauteur;
+
+	for (int i = y1; i < y2; i++)
+	{
+		b = 0;
+		for (int j = x1; j < x2; j++)
+		{
+			selection->image[a][b] = model->image[i][j];
+			b++;
+		}
+		a++;
+	}
+}
+
+void filtre_laplacien(fichierimage *model, fichierimage *laplacien, int masque[3][3])
+{
+	convolution(model, masque, laplacien);
+}
+
 void menu()
 {
-	system("cls");
+	// system("cls");
 
 	printf("Veuillez choisir l'action %c effectuer:\n", 133);
 	printf("\tNuances de gris (n)\n");
@@ -802,8 +868,13 @@ void menu()
 	printf("\tTSL vers RGB (r)\n");
 	printf("\tEgalisation de l'histogramme (e)\n");
 	printf("\tReduire l'image (d)\n");
+	printf("\tConvolution (c)\n");
 	printf("\tFiltre moyen (0)\n");
 	printf("\tFiltre median (1)\n");
+	printf("\tContraste (2)\n");
+	printf("\tLuminosite (3)\n");
+	printf("\tSelection (4)\n");
+	printf("\tLaplacien (5)\n");
 
 	printf("\tQuitter (q)\n");
 
@@ -820,6 +891,7 @@ void menu()
 	// fichierimage *model = charger(nom);
 
 	fichierimage *model = charger("NIDDAM_base.bmp");
+	// fichierimage *model = charger("./NIDDAM_snail.bmp");
 	fichierimage *nouvelle;
 
 	if (choix == 'n')
@@ -929,8 +1001,8 @@ void menu()
 		int masque0[3][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
 		int masque1[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
 
-		convolution(model, masque0, 3, nouvelle0);
-		convolution(model, masque1, 3, nouvelle1);
+		convolution(model, masque0, nouvelle0);
+		convolution(model, masque1, nouvelle1);
 		enregistrer("./resultats/NIDDAM_convolution0.bmp", nouvelle0);
 		enregistrer("./resultats/NIDDAM_convolution1.bmp", nouvelle1);
 		system("start ./resultats/NIDDAM_convolution0.bmp");
@@ -977,20 +1049,59 @@ void menu()
 
 	else if (choix == '0')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		filtre_moyen(model, nouvelle);
 		enregistrer("./resultats/NIDDAM_filtre_moyen.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_filtre_moyen.bmp");
-		free(nouvelle);
 	}
 
 	else if (choix == '1')
 	{
-		fichierimage *nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
 		filtre_median(model, nouvelle);
 		enregistrer("./resultats/NIDDAM_filtre_median.bmp", nouvelle);
 		system("start ./resultats/NIDDAM_filtre_median.bmp");
-		free(nouvelle);
+	}
+
+	else if (choix == '3')
+	{
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		luminosite(model, nouvelle, 25);
+		enregistrer("./resultats/NIDDAM_luminosite.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_luminosite.bmp");
+	}
+
+	else if (choix == '2')
+	{
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		contraste(model, nouvelle, 5);
+		enregistrer("./resultats/NIDDAM_contraste.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_contraste.bmp");
+	}
+
+	else if (choix == '4')
+	{
+		nouvelle = nouveau(150, 150);
+		selection(model, nouvelle, 150, 150, 300, 300);
+		enregistrer("./resultats/NIDDAM_selection.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_selection.bmp");
+	}
+
+	else if (choix == '5')
+	{
+		fichierimage *nouvelle0 = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+		nouvelle = nouveau(model->entetebmp.largeur, model->entetebmp.hauteur);
+
+		int masque0[3][3] = {{0, 1, 0}, {1, -4, 1}, {0, 1, 0}};
+		int masque1[3][3] = {{1, 1, 1}, {1, -8, 1}, {1, 1, 1}};
+		// int masque1[3][3] = {{1, -2, 1}, {-2, 4, -2}, {1, -2, 1}};
+
+		filtre_laplacien(model, nouvelle0, masque0);
+		filtre_laplacien(model, nouvelle, masque1);
+		enregistrer("./resultats/NIDDAM_filtre_laplacien0.bmp", nouvelle0);
+		enregistrer("./resultats/NIDDAM_filtre_laplacien1.bmp", nouvelle);
+		system("start ./resultats/NIDDAM_filtre_laplacien0.bmp");
+		system("start ./resultats/NIDDAM_filtre_laplacien1.bmp");
 	}
 
 	free(nouvelle);
