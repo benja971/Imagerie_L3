@@ -1,0 +1,5 @@
+Séance de TP du 01/12/21
+
+1) Les opérations à appliquer à l'image Séance de TP du 01/12/21 Cathy_originale.bmp pour obtenir l'image Cathy_resultat_attendu.bmp sont
+un filtrage de sobel suivi d'une invrsion des couleurs de l'image.
+

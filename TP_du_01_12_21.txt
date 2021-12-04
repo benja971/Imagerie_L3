@@ -1,0 +1,11 @@
+Séance de TP du 01/12/21
+
+1) Indiquer dans un fichier texte, les opérations à appliquer à l'image Cathy_originale.bmp pour obtenir l'image Cathy_resultat_attendu.bmp.
+(A envoyer par e-mail, à l'adresse jlhenry@univ-ag.fr, 15 mn après le début de la séance),
+
+2) Implémenter (en langage C, avec l'outil Visual C++) dans les fichiers .c et . h (récupérés sur e-cursus) les opérations proposées,
+
+3) A rendre en fin de séance les fichiers (non zippés) .c et . h ainsi que l'image résultat obtenue.
+(Les commentaires habituels doivent apparaître dans le code)
+
+Remarque : l'image Cathy_non_acceptee a pour but de montrer que ce n'est pas le résultat attendu. 
